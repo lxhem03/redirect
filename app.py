@@ -1,25 +1,32 @@
 from flask import Flask, redirect, request
 import os
+import random
 
 app = Flask(__name__)
 
-# Change this to your current backend URL
-BACKEND = os.getenv(
-    "BACKEND_URL",
-    ""
-)
+BACKENDS = [
+    x.strip()
+    for x in os.getenv("BACKEND_URLS", "").split(",")
+    if x.strip()
+]
 
-@app.route('/', defaults={'path': ''})
-@app.route('/<path:path>')
-def proxy(path):
-    query = request.query_string.decode()
+if not BACKENDS:
+    raise RuntimeError(
+        "Set BACKEND_URLS environment variable "
+        "(comma-separated backend URLs)."
+    )
 
-    target = f"{BACKEND}/{path}"
+@app.route("/", defaults={"path": ""})
+@app.route("/<path:path>")
+def route_request(path):
+    backend = random.choice(BACKENDS)
 
-    if query:
-        target += f"?{query}"
+    target = f"{backend.rstrip('/')}/{path}"
+
+    if request.query_string:
+        target += "?" + request.query_string.decode()
 
     return redirect(target, code=302)
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8000)
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8000)
